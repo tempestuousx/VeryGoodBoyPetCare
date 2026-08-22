@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Assistant runtime data
+*.ics
+rover_store.json
+*.local.json
+
+# Credentials (never commit)
+credentials.json
+token.json
+client_secret*.json
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

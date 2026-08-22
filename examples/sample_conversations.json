@@ -1,0 +1,104 @@
+[
+  {
+    "id": "conv-jane-bailey",
+    "url": "https://www.rover.com/messages/conv-jane-bailey/",
+    "service": "Dog Walking",
+    "client": {
+      "name": "Jane Miller",
+      "phone": "555-0100",
+      "address": "500 Oak St, Springfield"
+    },
+    "pets": [
+      {
+        "name": "Bailey",
+        "species": "dog",
+        "breed": "Golden Retriever",
+        "feeding": "1 cup kibble, twice a day",
+        "medication": "Joint supplement with breakfast",
+        "walking": "30 min, avoids other dogs",
+        "behavior": "Shy at first, warms up with treats"
+      }
+    ],
+    "messages": [
+      {
+        "sender": "client",
+        "text": "Hi! I'd love to set up a meet and greet before booking any walks. Bailey is a 2 year old golden. Are you free this week?",
+        "timestamp": "2026-08-20T09:00:00"
+      },
+      {
+        "sender": "me",
+        "text": "Hi Jane! Absolutely. How about Saturday August 29 at 3pm at your place?",
+        "timestamp": "2026-08-20T09:30:00"
+      },
+      {
+        "sender": "client",
+        "text": "Saturday at 3pm works great, see you then! Address is 500 Oak St. Bailey needs 1 cup of food twice a day and takes a joint supplement with breakfast. He can be shy at first but loves treats.",
+        "timestamp": "2026-08-20T10:00:00"
+      }
+    ]
+  },
+  {
+    "id": "conv-maybe-sat",
+    "url": "https://www.rover.com/messages/conv-maybe-sat/",
+    "service": "Drop-In Visit",
+    "client": { "name": "Tom Reyes", "phone": "555-0134" },
+    "pets": [{ "name": "Pixel", "species": "cat" }],
+    "messages": [
+      {
+        "sender": "client",
+        "text": "Maybe Saturday could work for a quick meet and greet? Not totally sure of my schedule yet, I'll confirm later.",
+        "timestamp": "2026-08-21T14:00:00"
+      }
+    ]
+  },
+  {
+    "id": "conv-milo-luna",
+    "url": "https://www.rover.com/messages/conv-milo-luna/",
+    "service": "Drop-In Visit",
+    "client": {
+      "name": "Priya Shah",
+      "phone": "555-0177",
+      "address": "42 Birch Ln, Springfield"
+    },
+    "pets": [
+      { "name": "Milo", "species": "cat", "feeding": "One scoop, morning" },
+      {
+        "name": "Luna",
+        "species": "cat",
+        "feeding": "One scoop, morning",
+        "medication": "Insulin shot at noon (diabetic)"
+      }
+    ],
+    "messages": [
+      {
+        "sender": "client",
+        "text": "Your booking is confirmed! Drop-In Visit for Milo & Luna on September 5 from 12pm to 12:30pm.",
+        "timestamp": "2026-08-21T16:00:00"
+      },
+      {
+        "sender": "client",
+        "text": "Gate code is 1234. Food is in the pantry, one scoop each. Luna is diabetic and needs an insulin shot at noon. Please park in the driveway.",
+        "timestamp": "2026-08-21T16:02:00"
+      }
+    ]
+  },
+  {
+    "id": "conv-followup",
+    "url": "https://www.rover.com/messages/conv-followup/",
+    "service": "Dog Walking",
+    "client": { "name": "Dana Lee", "phone": "555-0199" },
+    "pets": [{ "name": "Rex", "species": "dog" }],
+    "messages": [
+      {
+        "sender": "client",
+        "text": "Could you do a few dog walks for Rex next week?",
+        "timestamp": "2026-08-21T18:00:00"
+      },
+      {
+        "sender": "me",
+        "text": "Let me check my schedule and I'll text you tomorrow with what works!",
+        "timestamp": "2026-08-21T18:20:00"
+      }
+    ]
+  }
+]
