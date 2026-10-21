@@ -44,7 +44,14 @@ form.search input{flex:1 1 240px;min-width:0}
 .bench{display:grid;gap:14px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
 @media (max-width:820px){.bench{grid-template-columns:1fr}}
 .stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;gap:10px;min-width:0}
-.stage svg{width:100%;height:auto;display:block;touch-action:manipulation}
+.stage svg{width:100%;height:auto;display:block;touch-action:none;cursor:grab;user-select:none}
+.stage svg:active{cursor:grabbing}
+.vp{position:relative;border-radius:8px;overflow:hidden;background:var(--bg)}
+.zoom{position:absolute;right:8px;bottom:8px;display:flex;gap:4px}
+.zoom button{min-width:36px;padding:6px 8px;background:var(--panel)}
+.alert{position:absolute;left:8px;right:8px;top:8px;padding:8px 12px;border-radius:8px;font-weight:600;color:#fff;background:var(--bad);box-shadow:0 4px 14px #0003}
+.alert[data-level=warn]{background:var(--warn)}
+.iso .tb-part[data-out],.iso[data-xray] .tb-part[data-cat=structure]{pointer-events:none}
 .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .controls label{display:flex;gap:8px;align-items:center;flex:1 1 220px}
 .controls input[type=range]{flex:1}
@@ -106,7 +113,9 @@ form.search input{flex:1 1 240px;min-width:0}
     <div class="bench">
       <div class="stage">
         <div><h2 id="b-name"></h2><p class="muted" id="b-summary" style="margin:4px 0 0"></p><p class="mono muted" id="b-source" style="margin:4px 0 0"></p></div>
-        <div id="viewport"></div>
+        <div class="vp"><div id="viewport"></div><div class="alert" id="alert" role="alert" hidden></div>
+          <div class="zoom"><button id="z-in" aria-label="Zoom in">+</button><button id="z-out" aria-label="Zoom out">−</button><button id="z-fit">Fit</button></div></div>
+        <p class="mono muted" style="margin:0">Pinch or scroll to zoom in, drag to look around, tap a part to pick it.</p>
         <div class="controls">
           <label class="mono">Take apart <input type="range" id="step" min="0" max="1" value="0"></label>
           <span class="mono" id="step-n"></span>
@@ -1001,6 +1010,9 @@ function open(p) {
   const halo = (() => { const [w, d] = [Math.max(...spec.parts.map((x) => Math.abs(x.x) + footprint(x)[0] / 2)), Math.max(...spec.parts.map((x) => Math.abs(x.y) + footprint(x)[1] / 2))]; return `<path class="iso-halo" d="${K.haloOf({ x: -w, y: -d, w: 2 * w, d: 2 * d, r: 4 }, 0, 0.1, P)}"/>`; })();
   $("#viewport").innerHTML = `<svg class="iso-svg iso" viewBox="0 0 ${W} ${H}" role="img" aria-label="Teardown model of ${esc(spec.name)}" data-colors ${themeAttr()}>${halo}<g id="pieces">${nodes.map((n, i) => `<g class="tb-part" data-id="${esc(n.part.id)}" data-cat="${catOf(n.part.cat)}" data-n="${i}" style="--cat:${CATS[catOf(n.part.cat)][1]}">${n.piece.svg}</g>`).join("")}</g></svg>`;
   nodes.forEach((n, i) => { n.el = $(`#pieces [data-n="${i}"]`); });
+  const home = spec.parts.flatMap((x) => { const [w, d] = footprint(x); return [-1, 1].flatMap((sx) => [-1, 1].flatMap((sy) => [x.z || 0, (x.z || 0) + (x.h || 1)].map((z) => K.iso([x.x + sx * w / 2, x.y + sy * d / 2, z], P)))); });
+  homeBox = [Math.min(...home.map((q) => q[0])), Math.min(...home.map((q) => q[1])), Math.max(...home.map((q) => q[0])), Math.max(...home.map((q) => q[1]))];
+  fit();
   $("#colors").setAttribute("aria-pressed", "true"); $("#xray").setAttribute("aria-pressed", "false");
   const used = [...new Set(spec.parts.map((x) => catOf(x.cat)))];
   $("#legend").innerHTML = used.map((c) => `<span class="chip" style="--cat:${CATS[c][1]}">${CATS[c][0]}</span>`).join("");
@@ -1067,27 +1079,96 @@ function renderInfo() {
 }
 function renderVerdict() {
   const spec = cur.spec, fns = spec.functions || [];
-  const brokenBy = (p) => out.has(p.id) || swaps[p.id]?.works === "no";
+  // A part counts as missing when it was taken out, swapped for something that doesn't work, or lifted off by the teardown slider.
+  const brokenBy = (p) => out.has(p.id) || swaps[p.id]?.works === "no" || (p.step || 1) <= step;
   const dead = spec.parts.filter((p) => p.critical && brokenBy(p));
-  const rows = fns.map((f) => {
+  const states = fns.map((f) => {
     const hit = spec.parts.filter((p) => (p.needs || []).includes(f.id) || (swaps[p.id]?.affects || []).includes(f.id));
-    const bad = dead.length || hit.some(brokenBy), part = !bad && hit.some((p) => swaps[p.id]?.works === "partly");
+    const bad = dead.length > 0 || hit.some(brokenBy), part = !bad && hit.some((p) => swaps[p.id]?.works === "partly");
     const why = dead.length ? "no power or core part" : hit.filter(brokenBy).map((p) => p.what || p.name).join(", ");
-    return `<div class="fn"><span>${esc(f.name)}</span><span class="chip ${bad ? "bad" : part ? "warn" : "ok"}" title="${esc(why)}">${bad ? "broken" : part ? "partly" : "works"}</span></div>`;
-  }).join("");
+    return { f, bad, part, why };
+  });
+  const rows = states.map(({ f, bad, part, why }) => `<div class="fn"><span>${esc(f.name)}</span><span class="chip ${bad ? "bad" : part ? "warn" : "ok"}" title="${esc(why)}">${bad ? "broken" : part ? "partly" : "works"}</span></div>`).join("");
+  const alert = $("#alert"), names = (list) => list.map((p) => (p.what || p.name).toLowerCase()).join(" and ");
+  const broken = states.filter((s) => s.bad), partly = states.filter((s) => s.part);
+  alert.hidden = !dead.length && !broken.length && !partly.length;
+  alert.dataset.level = dead.length || broken.length ? "bad" : "warn";
+  alert.textContent = dead.length ? `⚠ Not working: without the ${names(dead)} the ${spec.kind ? spec.kind.toLowerCase() : "device"} won't turn on.`
+    : broken.length ? `⚠ Not working properly: ${broken.map((s) => `${s.f.name} stopped${s.why ? " (" + s.why.toLowerCase() + ")" : ""}`).join("; ")}.`
+    : partly.length ? `Partly working: ${partly.map((s) => s.f.name).join(", ")} may not work as well.` : "";
   const head = dead.length ? `<p class="bad" style="margin:0"><b>It won't work.</b> Without the ${dead.map((p) => esc((p.what || p.name).toLowerCase())).join(" and ")} nothing runs.</p>`
     : out.size || Object.keys(swaps).length ? `<p style="margin:0">Still runs. Check each feature below.</p>` : `<p class="ok" style="margin:0"><b>Everything works.</b> Take parts out or swap them to see what breaks.</p>`;
   $("#verdict").innerHTML = head + rows;
 }
 function pick(id) { sel = id; renderInfo(); renderParts(); draw(true); }
 
-$("#viewport").addEventListener("click", (e) => { const g = e.target.closest(".tb-part"); pick(g ? g.dataset.id : null); });
+// ---------- Zoom and pan: pinch, scroll wheel, drag; a tap without moving picks a part ----------
+let vb = { x: 0, y: 0, w: W, h: H };
+const svgEl = () => $("#viewport svg");
+const applyVb = () => svgEl()?.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+let homeBox = null, userZoomed = false;
+// Fit frames just the device while it is assembled, and the whole mat once parts come out.
+function fit() {
+  userZoomed = false;
+  if (step === 0 && homeBox) {
+    const [x0, y0, x1, y1] = homeBox, pad = 24;
+    let w = x1 - x0 + 2 * pad, h = y1 - y0 + 2 * pad;
+    if (w / h > W / H) h = w * H / W; else w = h * W / H;
+    vb = { x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - h / 2, w, h };
+  } else vb = { x: 0, y: 0, w: W, h: H };
+  applyVb();
+}
+function toSvg(cx, cy) { const r = svgEl().getBoundingClientRect(); return [vb.x + ((cx - r.left) / r.width) * vb.w, vb.y + ((cy - r.top) / r.height) * vb.h]; }
+function zoomAt(factor, sx, sy) {
+  userZoomed = true;
+  const w = Math.min(W, Math.max(W / 12, vb.w / factor)), k = w / vb.w;
+  vb = { x: sx - (sx - vb.x) * k, y: sy - (sy - vb.y) * k, w, h: H * (w / W) };
+  applyVb();
+}
+const touches = new Map();
+let gesture = null;
+$("#viewport").addEventListener("pointerdown", (e) => {
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size === 1) gesture = { tap: e.target.closest(".tb-part")?.dataset.id ?? null, start: [e.clientX, e.clientY], moved: false, vb: { ...vb } };
+  else if (touches.size === 2) { const [a, b] = [...touches.values()]; gesture = { pinch: Math.hypot(a[0] - b[0], a[1] - b[1]), vb: { ...vb }, moved: true }; }
+});
+$("#viewport").addEventListener("pointermove", (e) => {
+  if (!touches.has(e.pointerId) || !gesture) return;
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  const r = svgEl().getBoundingClientRect();
+  if (touches.size >= 2 && gesture.pinch) {
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    vb = { ...gesture.vb }; const [sx, sy] = toSvg(...mid);
+    zoomAt(d / gesture.pinch, sx, sy);
+  } else if (touches.size === 1 && gesture.start) {
+    const dx = e.clientX - gesture.start[0], dy = e.clientY - gesture.start[1];
+    if (!gesture.moved && Math.hypot(dx, dy) < 6) return;
+    if (!gesture.moved) { gesture.moved = true; e.currentTarget.setPointerCapture?.(e.pointerId); }
+    vb = { ...gesture.vb, x: gesture.vb.x - (dx / r.width) * gesture.vb.w, y: gesture.vb.y - (dy / r.height) * gesture.vb.h };
+    applyVb();
+  }
+});
+const endTouch = (e) => {
+  if (!touches.has(e.pointerId)) return;
+  touches.delete(e.pointerId);
+  if (gesture && !gesture.moved && touches.size === 0 && e.type === "pointerup") pick(gesture.tap);
+  if (touches.size === 0) gesture = null;
+  else if (touches.size === 1) { const [p] = [...touches.values()]; gesture = { start: p, moved: true, vb: { ...vb } }; }
+};
+$("#viewport").addEventListener("pointerup", endTouch);
+$("#viewport").addEventListener("pointercancel", endTouch);
+$("#viewport").addEventListener("wheel", (e) => { e.preventDefault(); const [sx, sy] = toSvg(e.clientX, e.clientY); zoomAt(Math.exp(-e.deltaY * 0.0015), sx, sy); }, { passive: false });
+$("#z-in").addEventListener("click", () => zoomAt(1.5, vb.x + vb.w / 2, vb.y + vb.h / 2));
+$("#z-out").addEventListener("click", () => zoomAt(1 / 1.5, vb.x + vb.w / 2, vb.y + vb.h / 2));
+$("#z-fit").addEventListener("click", fit);
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-pick]"); if (b) pick(b.dataset.pick); });
 $("#part-filter").addEventListener("input", renderParts);
-$("#step").addEventListener("input", (e) => { step = +e.target.value; renderStep(); kick(); });
+$("#step").addEventListener("input", (e) => { const was = step; step = +e.target.value; if (!userZoomed && (was === 0) !== (step === 0)) fit(); renderStep(); renderVerdict(); kick(); });
 $("#colors").addEventListener("click", (e) => { const svg = $("#viewport svg"); const on = !svg.hasAttribute("data-colors"); svg.toggleAttribute("data-colors", on); e.target.setAttribute("aria-pressed", on); $("#legend").hidden = !on; });
 $("#xray").addEventListener("click", (e) => { const svg = $("#viewport svg"); const on = !svg.hasAttribute("data-xray"); svg.toggleAttribute("data-xray", on); e.target.setAttribute("aria-pressed", on); });
-$("#reset").addEventListener("click", () => { out = new Set(); swaps = {}; step = 0; $("#step").value = 0; renderStep(); renderParts(); renderInfo(); renderVerdict(); kick(); });
+$("#reset").addEventListener("click", () => { out = new Set(); swaps = {}; step = 0; $("#step").value = 0; fit(); renderStep(); renderParts(); renderInfo(); renderVerdict(); kick(); });
 $("#back").addEventListener("click", () => { $("#bench").hidden = true; $("#shelf").hidden = false; cur = null; scene = null; });
 let deleteArmed = false;
 $("#delete").addEventListener("click", async (e) => {
@@ -1100,7 +1181,7 @@ $("#info").addEventListener("click", (e) => {
   if (e.target.id === "toggle-out") { out.has(p.id) ? out.delete(p.id) : out.add(p.id); }
   else if (e.target.id === "unswap") delete swaps[p.id];
   else if (e.target.id === "show-it") { step = Math.max(0, (p.step || 1) - 1); $("#step").value = step; renderStep(); kick(); return; }
-  else if (e.target.dataset.swap) { const s = p.swaps[+e.target.dataset.swap]; swaps[p.id] = { ...s, affects: [] }; }
+  else if (e.target.dataset.swap) { const s = p.swaps[+e.target.dataset.swap]; swaps[p.id] = { ...s, affects: [] }; out.delete(p.id); }
   else return;
   renderInfo(); renderParts(); renderVerdict(); draw(true);
 });
@@ -1112,7 +1193,8 @@ $("#info").addEventListener("submit", async (e) => {
   try {
     const r = await ask(`Device: ${cur.spec.name} (${cur.spec.kind || ""}). Part being replaced: ${p.name} (${p.what}; ${p.does}). Replacement the user wants to try: "${q}". Device features: ${JSON.stringify(cur.spec.functions || [])}. Would the device still work with this swap, physically and electrically? Return only JSON {"works":"yes|partly|no","why":"one or two plain sentences for a beginner","affects":["feature ids that break or degrade"]}.`);
     swaps[p.id] = { name: q, works: r.works, why: r.why, affects: r.affects || [] };
-    renderInfo(); renderParts(); renderVerdict();
+    out.delete(p.id);
+    renderInfo(); renderParts(); renderVerdict(); draw(true);
   } catch (err) { $("#swap-status").textContent = err?.message || "Couldn't check that. Try again."; }
 });
 
