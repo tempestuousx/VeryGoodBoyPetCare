@@ -1,0 +1,550 @@
+<title>Teardown Bench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an anti-static teardown mat. Header with search, then either the project shelf or one open bench. */
+:root{
+  --bg:#dfe5e3;--panel:#f3f6f5;--ink:#17201e;--muted:#5d6b67;--line:#c2ccc9;--accent:#0f7b6c;--accent-ink:#ffffff;
+  --ok:#1f8a55;--warn:#b77700;--bad:#c9303f;
+  --display:"Archivo",system-ui,sans-serif;--body:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1514;--panel:#161e1c;--ink:#e3ebe8;--muted:#8a9a95;--line:#2a3633;--accent:#3cc4ae;--accent-ink:#06201b;--ok:#4cc98a;--warn:#e6a93a;--bad:#ff6b78;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1514;--panel:#161e1c;--ink:#e3ebe8;--muted:#8a9a95;--line:#2a3633;--accent:#3cc4ae;--accent-ink:#06201b;--ok:#4cc98a;--warn:#e6a93a;--bad:#ff6b78;color-scheme:dark}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:18px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:22px;font-weight:800;letter-spacing:-.01em}
+h2{font-size:18px}h3{font-size:15px}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.02em}
+.muted{color:var(--muted)}
+button,input,textarea{font:inherit;color:var(--ink)}
+button{cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+input[type=text],input[type=search],textarea{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;width:100%;box-sizing:border-box}
+header.top{display:grid;gap:12px}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+form.search{display:flex;gap:8px;flex-wrap:wrap}
+form.search input{flex:1 1 240px;min-width:0}
+.status{padding:10px 12px;border-radius:8px;background:var(--panel);border:1px solid var(--line)}
+.status[data-level=bad]{border-color:var(--bad)}
+.shelf-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.toggle{display:flex;gap:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.card{display:grid;gap:6px;text-align:left;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:0}
+.card .thumb{aspect-ratio:4/3;max-width:100%;border-radius:6px;overflow:hidden}
+.card .thumb svg{width:100%;height:100%}
+.list .card{grid-template-columns:96px 1fr auto;align-items:center}
+.list{grid-template-columns:1fr}
+.chip{display:inline-block;font:500 11px/1.6 var(--mono);padding:0 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.bench{display:grid;gap:14px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+@media (max-width:820px){.bench{grid-template-columns:1fr}}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;gap:10px;min-width:0}
+.stage svg{width:100%;height:auto;display:block;touch-action:none;cursor:grab;user-select:none}
+.stage svg:active{cursor:grabbing}
+.vp{position:relative;border-radius:8px;overflow:hidden;background:var(--bg)}
+.zoom{position:absolute;right:8px;bottom:8px;display:flex;gap:4px}
+.zoom button{min-width:36px;padding:6px 8px;background:var(--panel)}
+.alert{position:absolute;left:8px;right:8px;top:8px;padding:8px 12px;border-radius:8px;font-weight:600;color:#fff;background:var(--bad);box-shadow:0 4px 14px #0003}
+.alert[data-level=warn]{background:var(--warn)}
+.iso .tb-part[data-out],.iso[data-xray] .tb-part[data-cat=structure]{pointer-events:none}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.controls label{display:flex;gap:8px;align-items:center;flex:1 1 220px}
+.controls input[type=range]{flex:1}
+.side{display:grid;gap:12px;align-content:start;min-width:0}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px;min-width:0}
+.fn{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.parts{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-height:260px;overflow:auto}
+.parts button{width:100%;text-align:left;border:0;background:none;padding:4px 6px;display:flex;gap:8px;align-items:center;border-radius:6px}
+.parts button[aria-current="true"]{background:var(--bg)}
+.dot{width:10px;height:10px;border-radius:3px;background:var(--cat);flex:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.legend .chip{color:var(--cat)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row input{flex:1 1 160px;min-width:0}
+.iso .tb-part{cursor:pointer}
+.iso[data-colors] .tb-part .iso-edge{stroke:var(--cat)}
+.iso[data-colors] .tb-part .iso-top{fill:color-mix(in srgb,var(--cat) 38%,var(--anatomy-top))}
+.iso[data-colors] .tb-part .iso-shade[data-shade="0"]{fill:color-mix(in srgb,var(--cat) 22%,var(--anatomy-shade-0))}
+.iso[data-colors] .tb-part .iso-shade[data-shade="1"]{fill:color-mix(in srgb,var(--cat) 24%,var(--anatomy-shade-1))}
+.iso[data-colors] .tb-part .iso-shade[data-shade="2"]{fill:color-mix(in srgb,var(--cat) 26%,var(--anatomy-shade-2))}
+.iso[data-colors] .tb-part .iso-shade[data-shade="3"]{fill:color-mix(in srgb,var(--cat) 28%,var(--anatomy-shade-3))}
+.iso .tb-part[data-sel] .iso-edge{stroke:var(--anatomy-lit);stroke-width:1.6}
+.iso .tb-part[data-out]{opacity:.22}
+.iso[data-xray] .tb-part[data-cat=structure]{opacity:.28}
+.iso-svg{max-height:62vh}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>Teardown Bench</h1><span class="mono muted">search it · open it · take it apart</span></div>
+    <form class="search" id="search-form">
+      <input type="search" id="q" placeholder="Exact name, e.g. Sony WH-1000XM4 headphones" aria-label="Electronic to look up" autocomplete="off">
+      <button class="primary" id="go">Search</button>
+      <label class="mono" style="display:flex;align-items:center;gap:6px"><input type="file" id="photo" accept="image/*" hidden><button type="button" id="photo-btn">Use a photo</button></label>
+    </form>
+    <div class="status" id="status" hidden></div>
+    <form id="describe" class="box" hidden>
+      <h3 id="describe-q">Describe it</h3>
+      <textarea id="desc" rows="3" placeholder="What is it, roughly how big, what does it do, what buttons, ports and lights does it have?"></textarea>
+      <div class="row"><button class="primary">Build my best guess</button><button type="button" id="describe-cancel">Cancel</button></div>
+    </form>
+  </header>
+
+  <section id="shelf" class="box" style="background:none;border:0;padding:0">
+    <div class="shelf-head"><h2>Projects</h2>
+      <div class="toggle" role="group" aria-label="View"><button id="v-grid" aria-pressed="true">Icons</button><button id="v-list" aria-pressed="false">List</button></div>
+    </div>
+    <div id="projects" class="grid"></div>
+    <p class="muted mono" id="store-note"></p>
+  </section>
+
+  <section id="bench" hidden>
+    <div class="shelf-head" style="margin-bottom:10px">
+      <div><button id="back">← Projects</button></div>
+      <div class="row"><button id="delete" hidden>Delete project</button></div>
+    </div>
+    <div class="bench">
+      <div class="stage">
+        <div><h2 id="b-name"></h2><p class="muted" id="b-summary" style="margin:4px 0 0"></p><p class="mono muted" id="b-source" style="margin:4px 0 0"></p></div>
+        <div class="vp"><div id="viewport"></div><div class="alert" id="alert" role="alert" hidden></div>
+          <div class="zoom"><button id="z-in" aria-label="Zoom in">+</button><button id="z-out" aria-label="Zoom out">−</button><button id="z-fit">Fit</button></div></div>
+        <p class="mono muted" style="margin:0">Pinch or scroll to zoom in, drag to look around, tap a part to pick it.</p>
+        <div class="controls">
+          <label class="mono">Take apart <input type="range" id="step" min="0" max="1" value="0"></label>
+          <span class="mono" id="step-n"></span>
+        </div>
+        <div class="controls">
+          <button id="colors" aria-pressed="true">Colour by function</button>
+          <button id="xray" aria-pressed="false">See through case</button>
+          <button id="reset">Put everything back</button>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="box" style="background:var(--bg)" id="step-guide"></div>
+      </div>
+      <div class="side">
+        <div class="box"><h3>Will it still work?</h3><div id="verdict"></div></div>
+        <div class="box" id="info"><h3>Tap a part</h3><p class="muted" style="margin:0">Tap any part in the drawing or the list to see what it is, take it out, or try a different part.</p></div>
+        <div class="box"><h3>Parts</h3><input type="search" id="part-filter" placeholder="Filter parts" aria-label="Filter parts"><ul class="parts" id="parts"></ul></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const K = (() => {
+/*KIT*/
+return { fitProjection, iso, depthOf, slabOf, cylinder, solidSvg, lineSvg, haloOf, translateAlong, ring, ISO_CSS };
+})();
+
+// Function categories: the colour each kind of part gets.
+const CATS = {
+  power: ["Power", "#e5a00d"], conductor: ["Wiring", "#c9773a"], control: ["Controls", "#3b82f6"], resistance: ["Passives", "#22a06b"],
+  output: ["Lights & display", "#e5484d"], sound: ["Sound", "#f97316"], input: ["Sensors & mics", "#84cc16"], processing: ["Chips", "#d946ef"],
+  wireless: ["Wireless", "#0ea5e9"], storage: ["Storage & caps", "#14b8a6"], measure: ["Measurement", "#8b5cf6"], structure: ["Case & frame", "#8a8f98"],
+};
+const catOf = (c) => (CATS[c] ? c : "structure");
+
+// A built-in example so the shelf is never empty. Not saved anywhere.
+const EXAMPLE = { id: "example", example: true, name: "Example: LED dimmer board", summary: "A coin cell lights an LED through a knob and a resistor, with a small current meter.", source: "example", spec: {
+  name: "LED dimmer board", kind: "Hobby circuit", sourceNote: "Built-in example", confidence: "high",
+  functions: [{ id: "light", name: "LED lights up" }, { id: "dim", name: "Brightness control" }, { id: "meter", name: "Current reading" }],
+  parts: [
+    { id: "board", name: "Circuit board", cat: "structure", shape: "box", x: 0, y: 0, z: 8, w: 64, d: 44, h: 1.6, what: "Circuit board", does: "Holds every part and carries the copper wiring.", step: 7, how: "Unscrew the four nuts and lift it off the standoffs.", tools: ["Small spanner"], critical: true, needs: [] },
+    { id: "feet", name: "Standoffs", cat: "structure", shape: "box", x: 0, y: 0, z: 0, w: 58, d: 38, h: 8, what: "Standoffs", does: "Keep the board off the table.", step: 8, how: "Unscrew from the board.", tools: ["Fingers"], critical: false, needs: [] },
+    { id: "cell", name: "CR2032 coin cell", cat: "power", shape: "cyl", x: -20, y: 0, z: 9.6, r: 10, h: 3.2, what: "Battery", does: "Supplies 3 volts to the whole loop.", step: 1, how: "Slide it out from under the clip. Always remove power first.", tools: ["Fingernail"], critical: true, needs: [], swaps: [{ name: "2 x AA pack (3 V)", works: "yes", why: "Same voltage, lasts much longer." }, { name: "9 V battery", works: "no", why: "Far too much current: the LED burns out." }] },
+    { id: "knob", name: "1 kΩ potentiometer", cat: "control", shape: "cyl", x: -2, y: 9, z: 9.6, r: 4, h: 12, what: "Knob", does: "Turns the brightness up or down by changing resistance.", step: 4, how: "Pull the knob off, then desolder its three legs.", tools: ["Soldering iron", "Solder wick"], critical: false, needs: ["dim"], swaps: [{ name: "10 kΩ potentiometer", works: "partly", why: "Works, but the LED is very dim for most of the turn." }] },
+    { id: "res", name: "47 Ω resistor", cat: "resistance", shape: "box", x: 8, y: -6, z: 10, w: 7, d: 2.5, h: 2.5, what: "Resistor", does: "Stops too much current reaching the LED.", step: 3, how: "Desolder both leads.", tools: ["Soldering iron"], critical: true, needs: ["light"], swaps: [{ name: "220 Ω resistor", works: "yes", why: "Safer, a little dimmer." }, { name: "Plain wire", works: "no", why: "With the knob turned up the LED gets too much current." }] },
+    { id: "meter", name: "Panel ammeter", cat: "measure", shape: "box", x: 16, y: -15, z: 9.6, w: 22, d: 8, h: 17, what: "Current meter", does: "Shows how much current flows. Sits in the loop.", step: 5, how: "Desolder its two pins; bridge the gap with a wire or the loop opens.", tools: ["Soldering iron"], critical: true, needs: ["meter"] },
+    { id: "led", name: "Red LED", cat: "output", shape: "cyl", x: 20, y: 7, z: 12, r: 2.5, h: 8.6, what: "LED", does: "Turns current into light. Only works one way round.", step: 2, how: "Note the long leg (+), then desolder both legs.", tools: ["Soldering iron"], critical: true, needs: ["light"] },
+    { id: "cap", name: "10 µF capacitor", cat: "storage", shape: "cyl", x: -14, y: -16, z: 9.6, r: 2.5, h: 7, what: "Capacitor", does: "Smooths the supply. The light works without it.", step: 6, how: "Note the stripe (−), desolder both legs.", tools: ["Soldering iron"], critical: false, needs: [] },
+  ] } };
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const status = (text, level) => { const s = $("#status"); s.hidden = !text; s.textContent = text || ""; s.dataset.level = level || ""; };
+
+// ---------- Storage: per-person projects in db, else this browser ----------
+let db = null, uid = null, projects = [];
+const LOCAL = "teardown-projects";
+const readLocal = () => { try { return JSON.parse(localStorage.getItem(LOCAL) || "[]"); } catch { return []; } };
+const writeLocal = (list) => { try { localStorage.setItem(LOCAL, JSON.stringify(list)); } catch {} };
+async function initStore() {
+  projects = readLocal(); renderShelf();
+  if (!window.claude) { $("#store-note").textContent = "Projects are kept in this browser only."; return; }
+  const [d, u] = await Promise.all([claude.use("db"), claude.use("user")]);
+  uid = u ? await u.id() : null;
+  if (!d || !uid) { $("#store-note").textContent = "Projects are kept in this browser only."; return; }
+  db = d;
+  $("#store-note").textContent = "Projects are saved to your account.";
+  db.collection("data/users/" + uid).onSnapshot((snap) => {
+    projects = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => (b.created || 0) - (a.created || 0));
+    renderShelf();
+  }, () => { $("#store-note").textContent = "Could not reach saved projects; showing this browser's copy."; });
+}
+async function saveProject(p) {
+  if (db) await db.collection("data/users/" + uid).doc(p.id).set(p);
+  else { projects = [p, ...projects.filter((x) => x.id !== p.id)]; writeLocal(projects); renderShelf(); }
+}
+async function deleteProject(id) {
+  if (db) await db.collection("data/users/" + uid).doc(id).delete();
+  else { projects = projects.filter((x) => x.id !== id); writeLocal(projects); renderShelf(); }
+}
+
+// ---------- Asking Claude ----------
+const SCHEMA = `Return only JSON: {"found":true,"name":"","maker":"","kind":"","summary":"1-2 sentences","confidence":"high|medium|low","sourceNote":"where this comes from, e.g. iFixit teardown of X, FCC internal photos","functions":[{"id":"","name":""}],"parts":[PART]}
+PART = {"id":"","name":"real part name or model","cat":"power|conductor|control|resistance|output|sound|input|processing|wireless|storage|measure|structure","shape":"box|cyl|shell|cup","x":0,"y":0,"z":0,"w":0,"d":0,"h":0,"r":0,"what":"plain beginner name","does":"one sentence","step":1,"how":"one sentence: screws, clips, glue, solder","tools":["..."],"critical":false,"needs":["function ids that stop without it"],"swaps":[{"name":"","works":"yes|partly|no","why":"one short sentence"}]}
+Geometry, in millimetres: lay the device flat on a mat, centred on x=0,y=0, resting on z=0, z up. x,y = centre of the part's footprint, z = its bottom. box uses w (x size), d (y size), h; cyl uses r and h (axis vertical). shell = an open-topped hollow box (a case half), cup = an open-topped hollow cylinder (an earcup). Lids and covers are separate box/cyl parts on top. Inner parts must sit inside their case at real proportions; mirror symmetric parts (both earcups). step = teardown order, 1 removed first (outer covers and power early, main case last); parts removed together share a step. 12-28 parts, short text.`;
+let sample = null;
+async function getSample() { if (!sample && window.claude) sample = await claude.use("sample"); return sample; }
+async function ask(prompt, images) {
+  const s = await getSample();
+  if (!s) throw { code: "not_granted", message: "Looking things up needs Claude access. Open this page on claude.ai while signed in." };
+  return s.json(prompt, { modelTier: "complex", ...(images ? { images } : {}) });
+}
+const slug = (s) => (s || "device").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) + "-" + Date.now().toString(36);
+let pendingQuery = "", pendingImage = null;
+async function lookUp(query, image) {
+  pendingQuery = query; pendingImage = image || null;
+  $("#describe").hidden = true;
+  status((image ? "Looking at your photo" : "Looking up " + query) + "… this takes about a minute.");
+  try {
+    const spec = await ask(`You are an electronics teardown expert. Identify this product: "${query || "the device in the photo"}". If you confidently know this exact product or a very close sibling, build its teardown model from what is known of its real internals (published teardowns, iFixit, FCC internal photos). If you do not recognise it, return {"found":false,"question":"one short question asking the user to describe it"}.\n${SCHEMA}`, image ? [image] : null);
+    if (!spec || spec.found === false || !Array.isArray(spec.parts)) {
+      status("");
+      $("#describe-q").textContent = spec?.question || `I couldn't find "${query}". Describe it and I'll build my best guess.`;
+      $("#describe").hidden = false; $("#desc").focus();
+      return;
+    }
+    await finish(spec, "identified");
+  } catch (e) { status(e?.code === "rate_limited" ? "Too many lookups at once. Wait a minute and try again." : (e?.message || "The lookup failed. Try again."), "bad"); }
+}
+async function buildFromDescription(text) {
+  status("Building a best-guess model from your description…");
+  try {
+    const spec = await ask(`You are an electronics teardown expert. The user could not find their device by name. Name they gave: "${pendingQuery}". Their description: "${text}". Build the most likely teardown model for a device like this, using typical parts for its kind. Set "found":true and "confidence":"low".\n${SCHEMA}`, pendingImage ? [pendingImage] : null);
+    $("#describe").hidden = true;
+    await finish(spec, "described");
+  } catch (e) { status(e?.message || "That didn't work. Try again.", "bad"); }
+}
+async function finish(spec, source) {
+  spec.parts = spec.parts.filter((p) => p && p.id).slice(0, 40);
+  const p = { id: slug(spec.name), name: spec.name || pendingQuery, summary: spec.summary || "", source, query: pendingQuery, created: Date.now(), spec };
+  try { await saveProject(p); } catch { status("Built it, but couldn't save it. It's open below.", "bad"); }
+  status(""); open(p);
+}
+
+// ---------- Shelf ----------
+let view = "grid";
+function renderShelf() {
+  const list = [...projects, EXAMPLE];
+  const el = $("#projects");
+  el.className = view;
+  el.innerHTML = list.map((p) => `<button class="card" data-open="${esc(p.id)}">
+    <div class="thumb">${thumb(p.spec)}</div>
+    <div style="min-width:0"><b>${esc(p.name)}</b><div class="muted mono">${p.spec.parts.length} parts · ${p.example ? "example" : p.source === "described" ? "from your description" : "identified"}</div></div>
+    ${view === "list" ? `<span class="chip muted">${p.example ? "example" : new Date(p.created).toLocaleDateString()}</span>` : ""}
+  </button>`).join("");
+}
+$("#projects").addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (!b) return; open([...projects, EXAMPLE].find((p) => p.id === b.dataset.open)); });
+for (const [id, v] of [["#v-grid", "grid"], ["#v-list", "list"]]) $(id).addEventListener("click", () => { view = v; $("#v-grid").setAttribute("aria-pressed", v === "grid"); $("#v-list").setAttribute("aria-pressed", v === "list"); renderShelf(); });
+
+// ---------- Drawing ----------
+const W = 640, H = 440;
+function footprint(p) { return p.shape === "cyl" || p.shape === "cup" ? [2 * (p.r || 5), 2 * (p.r || 5)] : [p.w || 10, p.d || 10]; }
+// Where each part lands on the mat when removed: rows to the right of the device, in teardown order.
+function trayOf(parts) {
+  const xs = parts.flatMap((p) => { const [w] = footprint(p); return [p.x - w / 2, p.x + w / 2]; });
+  const ys = parts.flatMap((p) => { const [, d] = footprint(p); return [p.y - d / 2, p.y + d / 2]; });
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const span = Math.max(maxX - minX, maxY - minY, 30), gap = span * 0.08;
+  const width = Math.max(span, ...parts.map((p) => footprint(p)[0]));
+  const x0 = maxX + span * 0.3;
+  let cx = x0, cy = minY, rowD = 0;
+  const out = {};
+  for (const p of [...parts].sort((a, b) => (a.step || 0) - (b.step || 0))) {
+    const [w, d] = footprint(p);
+    if (cx > x0 && cx + w > x0 + width) { cx = x0; cy += rowD + gap; rowD = 0; }
+    out[p.id] = [cx + w / 2, cy + d / 2];
+    cx += w + gap; rowD = Math.max(rowD, d);
+  }
+  return out;
+}
+function piecesOf(p, P) {
+  const tone = p.cat === "structure" ? "mid" : "hi";
+  const z = p.z || 0, h = Math.max(p.h || 1, 0.4);
+  if (p.shape === "cyl") return [{ front: false, svg: K.solidSvg(K.cylinder(p.x, p.y, p.r || 5, z, h, P, 40, 0.4), { tone }) }];
+  if (p.shape === "cup") {
+    const r = p.r || 5, t = Math.max(0.8, r * 0.06);
+    return [{ front: false, svg: K.solidSvg(K.cylinder(p.x, p.y, r, z, h, P, 48, 0.4), { tone }) + K.lineSvg(K.ring(p.x, p.y, r - t, z + h, P, 48), { tone: "lo" }) }];
+  }
+  const w = p.w || 10, d = p.d || 10, x0 = p.x - w / 2, y0 = p.y - d / 2;
+  if (p.shape === "shell") {
+    const t = Math.max(0.8, Math.min(w, d) * 0.05);
+    const S = (plan, zz, hh) => K.solidSvg(K.slabOf(plan, zz, hh, P, 2, 0.3), { tone });
+    return [
+      { front: false, svg: S({ x: x0, y: y0, w, d, r: t }, z, t) + S({ x: x0, y: y0, w: t, d, r: 0 }, z, h) + S({ x: x0, y: y0, w, d: t, r: 0 }, z, h) },
+      { front: true, svg: S({ x: x0 + w - t, y: y0, w: t, d, r: 0 }, z, h) + S({ x: x0, y: y0 + d - t, w, d: t, r: 0 }, z, h) },
+    ];
+  }
+  return [{ front: false, svg: K.solidSvg(K.slabOf({ x: x0, y: y0, w, d, r: Math.min(w, d) * 0.08 }, z, h, P, 3, 0.4), { tone }) }];
+}
+function sceneOf(spec, { width = W, height = H, tray = true } = {}) {
+  const parts = spec.parts;
+  const slots = tray ? trayOf(parts) : {};
+  const pts = [];
+  for (const p of parts) {
+    const [w, d] = footprint(p), top = (p.z || 0) + (p.h || 1);
+    for (const [cx, cy, z0, z1] of [[p.x, p.y, p.z || 0, top], ...(tray ? [[slots[p.id][0], slots[p.id][1], 0, p.h || 1]] : [])])
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const zz of [z0, z1]) pts.push([cx + sx * w / 2, cy + sy * d / 2, zz]);
+  }
+  const P = K.fitProjection(pts, width, height, { pad: 18, azimuth: 40 });
+  return { P, slots };
+}
+function thumb(spec) {
+  try {
+    const { P } = sceneOf(spec, { width: 240, height: 180, tray: false });
+    const items = spec.parts.flatMap((p) => piecesOf(p, P).map((piece) => ({ p, piece })));
+    items.sort((a, b) => keyOf(a.p, a.piece, P, 0) - keyOf(b.p, b.piece, P, 0));
+    return `<svg viewBox="0 0 240 180" class="iso" data-colors ${themeAttr()}>${items.map(({ p, piece }) => `<g class="tb-part" style="--cat:${CATS[catOf(p.cat)][1]}">${piece.svg}</g>`).join("")}</svg>`;
+  } catch { return ""; }
+}
+// Painter's key: lower parts first, then back to front; a case's front walls after what sits inside it.
+const keyOf = (p, piece, P, lift, dx = 0, dy = 0) => ((p.z || 0) * (1 - lift) + (piece.front ? (p.h || 1) : 0)) * 1000 + K.depthOf([p.x + dx, p.y + dy, 0], P);
+
+// ---------- Bench ----------
+let cur = null, scene = null, nodes = [], out = new Set(), swaps = {}, sel = null, step = 0, anim = {}, frame = 0;
+function open(p) {
+  cur = p; out = new Set(); swaps = {}; sel = null; step = 0; anim = {};
+  const spec = p.spec;
+  $("#shelf").hidden = true; $("#bench").hidden = false;
+  $("#delete").hidden = !!p.example;
+  $("#b-name").textContent = spec.name || p.name;
+  $("#b-summary").textContent = p.summary || spec.summary || "";
+  $("#b-source").textContent = (p.source === "described" ? "Best guess from your description" : spec.sourceNote || "Identified by Claude") + (spec.confidence ? " · confidence " + spec.confidence : "") + " · positions are approximate";
+  const maxStep = Math.max(1, ...spec.parts.map((x) => x.step || 1));
+  $("#step").max = maxStep; $("#step").value = 0;
+  scene = sceneOf(spec);
+  const { P } = scene;
+  nodes = spec.parts.flatMap((part) => piecesOf(part, P).map((piece) => ({ part, piece })));
+  const halo = (() => { const [w, d] = [Math.max(...spec.parts.map((x) => Math.abs(x.x) + footprint(x)[0] / 2)), Math.max(...spec.parts.map((x) => Math.abs(x.y) + footprint(x)[1] / 2))]; return `<path class="iso-halo" d="${K.haloOf({ x: -w, y: -d, w: 2 * w, d: 2 * d, r: 4 }, 0, 0.1, P)}"/>`; })();
+  $("#viewport").innerHTML = `<svg class="iso-svg iso" viewBox="0 0 ${W} ${H}" role="img" aria-label="Teardown model of ${esc(spec.name)}" data-colors ${themeAttr()}>${halo}<g id="pieces">${nodes.map((n, i) => `<g class="tb-part" data-id="${esc(n.part.id)}" data-cat="${catOf(n.part.cat)}" data-n="${i}" style="--cat:${CATS[catOf(n.part.cat)][1]}">${n.piece.svg}</g>`).join("")}</g></svg>`;
+  nodes.forEach((n, i) => { n.el = $(`#pieces [data-n="${i}"]`); });
+  const home = spec.parts.flatMap((x) => { const [w, d] = footprint(x); return [-1, 1].flatMap((sx) => [-1, 1].flatMap((sy) => [x.z || 0, (x.z || 0) + (x.h || 1)].map((z) => K.iso([x.x + sx * w / 2, x.y + sy * d / 2, z], P)))); });
+  homeBox = [Math.min(...home.map((q) => q[0])), Math.min(...home.map((q) => q[1])), Math.max(...home.map((q) => q[0])), Math.max(...home.map((q) => q[1]))];
+  fit();
+  $("#colors").setAttribute("aria-pressed", "true"); $("#xray").setAttribute("aria-pressed", "false");
+  const used = [...new Set(spec.parts.map((x) => catOf(x.cat)))];
+  $("#legend").innerHTML = used.map((c) => `<span class="chip" style="--cat:${CATS[c][1]}">${CATS[c][0]}</span>`).join("");
+  $("#part-filter").value = "";
+  renderParts(); renderInfo(); renderVerdict(); renderStep(); draw(true);
+  window.scrollTo({ top: 0 });
+}
+function draw(force) {
+  if (!scene) return;
+  const { P, slots } = scene;
+  let moving = false;
+  for (const p of cur.spec.parts) {
+    const want = (p.step || 1) <= step ? 1 : 0;
+    const a = anim[p.id] ?? 0;
+    const next = matchMedia("(prefers-reduced-motion: reduce)").matches ? want : a + (want - a) * 0.16;
+    anim[p.id] = Math.abs(want - next) < 0.002 ? want : next;
+    if (anim[p.id] !== want) moving = true;
+  }
+  const keyed = nodes.map((n) => {
+    const t = anim[n.part.id] || 0, e = t * t * (3 - 2 * t);
+    const [tx, ty] = slots[n.part.id];
+    const dx = (tx - n.part.x) * e, dy = (ty - n.part.y) * e, dz = -(n.part.z || 0) * e + Math.sin(Math.PI * e) * 20;
+    n.el.setAttribute("transform", K.translateAlong(P, [dx, dy, dz]));
+    n.el.toggleAttribute("data-out", out.has(n.part.id));
+    n.el.toggleAttribute("data-sel", sel === n.part.id);
+    return { n, k: keyOf(n.part, n.piece, P, e, dx, dy) + (e > 0.02 && e < 0.98 ? 1e6 : 0) };
+  }).sort((a, b) => a.k - b.k);
+  const host = $("#pieces");
+  keyed.forEach(({ n }, i) => { if (host.children[i] !== n.el) host.insertBefore(n.el, host.children[i] || null); });
+  frame = moving ? requestAnimationFrame(() => draw()) : 0;
+}
+const kick = () => { if (!frame) frame = requestAnimationFrame(() => draw()); };
+
+function renderStep() {
+  const parts = cur.spec.parts, max = +$("#step").max;
+  $("#step-n").textContent = step ? `step ${step} of ${max}` : "assembled";
+  const now = parts.filter((p) => (p.step || 1) === (step || 1));
+  const next = step < max ? parts.filter((p) => (p.step || 1) === step + 1) : [];
+  const line = (p) => `<li><button class="linkish" data-pick="${esc(p.id)}" style="border:0;background:none;padding:0;color:inherit;text-decoration:underline">${esc(p.what || p.name)}</button>: ${esc(p.how || "")} ${p.tools?.length ? `<span class="muted mono">· ${esc(p.tools.join(", "))}</span>` : ""}</li>`;
+  $("#step-guide").innerHTML = step
+    ? `<h3>Step ${step}: just removed</h3><ul style="margin:0;padding-left:18px">${now.map(line).join("")}</ul>${next.length ? `<p class="muted" style="margin:6px 0 0">Next: ${next.map((p) => esc(p.what || p.name)).join(", ")}</p>` : `<p class="muted" style="margin:6px 0 0">Fully taken apart.</p>`}`
+    : `<h3>Ready to take apart</h3><p style="margin:0">Drag the slider to remove parts in order. First up: ${parts.filter((p) => (p.step || 1) === 1).map((p) => esc(p.what || p.name)).join(", ")}.</p>`;
+}
+function renderParts() {
+  const f = $("#part-filter").value.toLowerCase();
+  $("#parts").innerHTML = [...cur.spec.parts].sort((a, b) => (a.step || 0) - (b.step || 0))
+    .filter((p) => !f || (p.name + " " + p.what + " " + (CATS[catOf(p.cat)][0])).toLowerCase().includes(f))
+    .map((p) => `<li><button data-pick="${esc(p.id)}" aria-current="${sel === p.id}" style="--cat:${CATS[catOf(p.cat)][1]}"><span class="dot"></span><span style="flex:1;min-width:0">${esc(p.what || p.name)} <span class="muted">${esc(p.what && p.name !== p.what ? "· " + p.name : "")}</span></span>${out.has(p.id) ? '<span class="chip bad">out</span>' : swaps[p.id] ? '<span class="chip warn">swapped</span>' : ""}</button></li>`).join("");
+}
+function renderInfo() {
+  const p = cur.spec.parts.find((x) => x.id === sel);
+  if (!p) { $("#info").innerHTML = `<h3>Tap a part</h3><p class="muted" style="margin:0">Tap any part in the drawing or the list to see what it is, take it out, or try a different part.</p>`; return; }
+  const c = CATS[catOf(p.cat)], sw = swaps[p.id];
+  $("#info").innerHTML = `<h3>${esc(p.what || p.name)} <span class="chip" style="color:${c[1]}">${c[0]}</span></h3>
+    <div class="mono muted">${esc(p.name)}</div>
+    <p style="margin:0">${esc(p.does || "")}</p>
+    <p style="margin:0" class="muted">Removal step ${p.step || 1}: ${esc(p.how || "")}${p.tools?.length ? " Tools: " + esc(p.tools.join(", ")) + "." : ""}</p>
+    <div class="row"><button id="toggle-out">${out.has(p.id) ? "Put it back" : "Take it out"}</button>${(p.step || 1) > step ? `<button id="show-it">Show me where it is</button>` : ""}</div>
+    ${sw ? `<p style="margin:0" class="${sw.works === "yes" ? "ok" : sw.works === "partly" ? "warn" : "bad"}">Swapped for <b>${esc(sw.name)}</b>: ${esc(sw.why)}</p><div><button id="unswap">Undo swap</button></div>` : ""}
+    <h3 style="margin-top:6px">Try a different part</h3>
+    ${(p.swaps || []).length ? `<div class="row">${p.swaps.map((s, i) => `<button data-swap="${i}">${esc(s.name)}</button>`).join("")}</div>` : ""}
+    <form class="row" id="swap-form"><input type="text" id="swap-q" placeholder="Any part, e.g. a bigger battery" aria-label="Part to try"><button class="primary">Will it work?</button></form>
+    <div id="swap-status" class="muted"></div>`;
+}
+function renderVerdict() {
+  const spec = cur.spec, fns = spec.functions || [];
+  // A part counts as missing when it was taken out, swapped for something that doesn't work, or lifted off by the teardown slider.
+  const brokenBy = (p) => out.has(p.id) || swaps[p.id]?.works === "no" || (p.step || 1) <= step;
+  const dead = spec.parts.filter((p) => p.critical && brokenBy(p));
+  const states = fns.map((f) => {
+    const hit = spec.parts.filter((p) => (p.needs || []).includes(f.id) || (swaps[p.id]?.affects || []).includes(f.id));
+    const bad = dead.length > 0 || hit.some(brokenBy), part = !bad && hit.some((p) => swaps[p.id]?.works === "partly");
+    const why = dead.length ? "no power or core part" : hit.filter(brokenBy).map((p) => p.what || p.name).join(", ");
+    return { f, bad, part, why };
+  });
+  const rows = states.map(({ f, bad, part, why }) => `<div class="fn"><span>${esc(f.name)}</span><span class="chip ${bad ? "bad" : part ? "warn" : "ok"}" title="${esc(why)}">${bad ? "broken" : part ? "partly" : "works"}</span></div>`).join("");
+  const alert = $("#alert"), names = (list) => list.map((p) => (p.what || p.name).toLowerCase()).join(" and ");
+  const broken = states.filter((s) => s.bad), partly = states.filter((s) => s.part);
+  alert.hidden = !dead.length && !broken.length && !partly.length;
+  alert.dataset.level = dead.length || broken.length ? "bad" : "warn";
+  alert.textContent = dead.length ? `⚠ Not working: without the ${names(dead)} the ${spec.kind ? spec.kind.toLowerCase() : "device"} won't turn on.`
+    : broken.length ? `⚠ Not working properly: ${broken.map((s) => `${s.f.name} stopped${s.why ? " (" + s.why.toLowerCase() + ")" : ""}`).join("; ")}.`
+    : partly.length ? `Partly working: ${partly.map((s) => s.f.name).join(", ")} may not work as well.` : "";
+  const head = dead.length ? `<p class="bad" style="margin:0"><b>It won't work.</b> Without the ${dead.map((p) => esc((p.what || p.name).toLowerCase())).join(" and ")} nothing runs.</p>`
+    : out.size || Object.keys(swaps).length ? `<p style="margin:0">Still runs. Check each feature below.</p>` : `<p class="ok" style="margin:0"><b>Everything works.</b> Take parts out or swap them to see what breaks.</p>`;
+  $("#verdict").innerHTML = head + rows;
+}
+function pick(id) { sel = id; renderInfo(); renderParts(); draw(true); }
+
+// ---------- Zoom and pan: pinch, scroll wheel, drag; a tap without moving picks a part ----------
+let vb = { x: 0, y: 0, w: W, h: H };
+const svgEl = () => $("#viewport svg");
+const applyVb = () => svgEl()?.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+let homeBox = null, userZoomed = false;
+// Fit frames just the device while it is assembled, and the whole mat once parts come out.
+function fit() {
+  userZoomed = false;
+  if (step === 0 && homeBox) {
+    const [x0, y0, x1, y1] = homeBox, pad = 24;
+    let w = x1 - x0 + 2 * pad, h = y1 - y0 + 2 * pad;
+    if (w / h > W / H) h = w * H / W; else w = h * W / H;
+    vb = { x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - h / 2, w, h };
+  } else vb = { x: 0, y: 0, w: W, h: H };
+  applyVb();
+}
+function toSvg(cx, cy) { const r = svgEl().getBoundingClientRect(); return [vb.x + ((cx - r.left) / r.width) * vb.w, vb.y + ((cy - r.top) / r.height) * vb.h]; }
+function zoomAt(factor, sx, sy) {
+  userZoomed = true;
+  const w = Math.min(W, Math.max(W / 12, vb.w / factor)), k = w / vb.w;
+  vb = { x: sx - (sx - vb.x) * k, y: sy - (sy - vb.y) * k, w, h: H * (w / W) };
+  applyVb();
+}
+const touches = new Map();
+let gesture = null;
+$("#viewport").addEventListener("pointerdown", (e) => {
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size === 1) gesture = { tap: e.target.closest(".tb-part")?.dataset.id ?? null, start: [e.clientX, e.clientY], moved: false, vb: { ...vb } };
+  else if (touches.size === 2) { const [a, b] = [...touches.values()]; gesture = { pinch: Math.hypot(a[0] - b[0], a[1] - b[1]), vb: { ...vb }, moved: true }; }
+});
+$("#viewport").addEventListener("pointermove", (e) => {
+  if (!touches.has(e.pointerId) || !gesture) return;
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  const r = svgEl().getBoundingClientRect();
+  if (touches.size >= 2 && gesture.pinch) {
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    vb = { ...gesture.vb }; const [sx, sy] = toSvg(...mid);
+    zoomAt(d / gesture.pinch, sx, sy);
+  } else if (touches.size === 1 && gesture.start) {
+    const dx = e.clientX - gesture.start[0], dy = e.clientY - gesture.start[1];
+    if (!gesture.moved && Math.hypot(dx, dy) < 6) return;
+    if (!gesture.moved) { gesture.moved = true; e.currentTarget.setPointerCapture?.(e.pointerId); }
+    vb = { ...gesture.vb, x: gesture.vb.x - (dx / r.width) * gesture.vb.w, y: gesture.vb.y - (dy / r.height) * gesture.vb.h };
+    applyVb();
+  }
+});
+const endTouch = (e) => {
+  if (!touches.has(e.pointerId)) return;
+  touches.delete(e.pointerId);
+  if (gesture && !gesture.moved && touches.size === 0 && e.type === "pointerup") pick(gesture.tap);
+  if (touches.size === 0) gesture = null;
+  else if (touches.size === 1) { const [p] = [...touches.values()]; gesture = { start: p, moved: true, vb: { ...vb } }; }
+};
+$("#viewport").addEventListener("pointerup", endTouch);
+$("#viewport").addEventListener("pointercancel", endTouch);
+$("#viewport").addEventListener("wheel", (e) => { e.preventDefault(); const [sx, sy] = toSvg(e.clientX, e.clientY); zoomAt(Math.exp(-e.deltaY * 0.0015), sx, sy); }, { passive: false });
+$("#z-in").addEventListener("click", () => zoomAt(1.5, vb.x + vb.w / 2, vb.y + vb.h / 2));
+$("#z-out").addEventListener("click", () => zoomAt(1 / 1.5, vb.x + vb.w / 2, vb.y + vb.h / 2));
+$("#z-fit").addEventListener("click", fit);
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-pick]"); if (b) pick(b.dataset.pick); });
+$("#part-filter").addEventListener("input", renderParts);
+$("#step").addEventListener("input", (e) => { const was = step; step = +e.target.value; if (!userZoomed && (was === 0) !== (step === 0)) fit(); renderStep(); renderVerdict(); kick(); });
+$("#colors").addEventListener("click", (e) => { const svg = $("#viewport svg"); const on = !svg.hasAttribute("data-colors"); svg.toggleAttribute("data-colors", on); e.target.setAttribute("aria-pressed", on); $("#legend").hidden = !on; });
+$("#xray").addEventListener("click", (e) => { const svg = $("#viewport svg"); const on = !svg.hasAttribute("data-xray"); svg.toggleAttribute("data-xray", on); e.target.setAttribute("aria-pressed", on); });
+$("#reset").addEventListener("click", () => { out = new Set(); swaps = {}; step = 0; $("#step").value = 0; fit(); renderStep(); renderParts(); renderInfo(); renderVerdict(); kick(); });
+$("#back").addEventListener("click", () => { $("#bench").hidden = true; $("#shelf").hidden = false; cur = null; scene = null; });
+let deleteArmed = false;
+$("#delete").addEventListener("click", async (e) => {
+  if (!deleteArmed) { deleteArmed = true; e.target.textContent = "Tap again to delete"; setTimeout(() => { deleteArmed = false; e.target.textContent = "Delete project"; }, 3000); return; }
+  deleteArmed = false; e.target.textContent = "Delete project";
+  try { await deleteProject(cur.id); $("#back").click(); } catch { status("Couldn't delete it. Try again.", "bad"); }
+});
+$("#info").addEventListener("click", (e) => {
+  const p = cur.spec.parts.find((x) => x.id === sel); if (!p) return;
+  if (e.target.id === "toggle-out") { out.has(p.id) ? out.delete(p.id) : out.add(p.id); }
+  else if (e.target.id === "unswap") delete swaps[p.id];
+  else if (e.target.id === "show-it") { step = Math.max(0, (p.step || 1) - 1); $("#step").value = step; renderStep(); kick(); return; }
+  else if (e.target.dataset.swap) { const s = p.swaps[+e.target.dataset.swap]; swaps[p.id] = { ...s, affects: [] }; out.delete(p.id); }
+  else return;
+  renderInfo(); renderParts(); renderVerdict(); draw(true);
+});
+$("#info").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const p = cur.spec.parts.find((x) => x.id === sel), q = $("#swap-q").value.trim();
+  if (!p || !q) return;
+  $("#swap-status").textContent = "Checking with Claude…";
+  try {
+    const r = await ask(`Device: ${cur.spec.name} (${cur.spec.kind || ""}). Part being replaced: ${p.name} (${p.what}; ${p.does}). Replacement the user wants to try: "${q}". Device features: ${JSON.stringify(cur.spec.functions || [])}. Would the device still work with this swap, physically and electrically? Return only JSON {"works":"yes|partly|no","why":"one or two plain sentences for a beginner","affects":["feature ids that break or degrade"]}.`);
+    swaps[p.id] = { name: q, works: r.works, why: r.why, affects: r.affects || [] };
+    out.delete(p.id);
+    renderInfo(); renderParts(); renderVerdict(); draw(true);
+  } catch (err) { $("#swap-status").textContent = err?.message || "Couldn't check that. Try again."; }
+});
+
+// ---------- Search ----------
+$("#search-form").addEventListener("submit", (e) => { e.preventDefault(); const q = $("#q").value.trim(); if (q) lookUp(q); });
+$("#photo-btn").addEventListener("click", () => $("#photo").click());
+$("#photo").addEventListener("change", async (e) => {
+  const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+  const s = await getSample();
+  const lim = s && (await s.limits?.().catch(() => null));
+  if (!s || !lim?.images) { status("Photos aren't available here. Type the name instead.", "bad"); return; }
+  lookUp($("#q").value.trim(), f);
+});
+$("#describe").addEventListener("submit", (e) => { e.preventDefault(); const t = $("#desc").value.trim(); if (t) buildFromDescription(t); });
+$("#describe-cancel").addEventListener("click", () => { $("#describe").hidden = true; });
+
+// ---------- Theme: match the viewer's light or dark ----------
+const isDark = () => { const t = document.documentElement.dataset.theme; return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
+const themeAttr = () => (isDark() ? "" : 'data-theme="light"');
+const syncTheme = () => document.querySelectorAll("svg.iso").forEach((s) => (isDark() ? s.removeAttribute("data-theme") : s.setAttribute("data-theme", "light")));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncTheme);
+new MutationObserver(syncTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+const kitStyle = document.createElement("style"); kitStyle.textContent = K.ISO_CSS.replace(".iso-plate .iso-svg{margin:0 auto}", ""); document.head.prepend(kitStyle);
+
+renderShelf();
+initStore();
+</script>
