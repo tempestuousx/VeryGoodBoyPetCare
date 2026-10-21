@@ -63,3 +63,15 @@ Follow the anatomy workflow (size, truth, object, parts list, world, geometry, p
 | `../anatomy/scripts/*` | Capture, drive, line check and print tools. |
 
 A page needs three extras beyond a normal anatomy page: put `ELEC_DEFS` first in the SVG body (the LED glow gradient), put `<style>${ELEC_CSS}</style>` before the plate in the page body, and add the LED glow markup after every part.
+
+## Tinker mode (click, remove, swap, take apart)
+
+`kit/catalog.mjs` turns a figure into something you can tinker with. The LED dimmer example uses all of it:
+
+- **Click a part** to see what it is, what it does, whether the circuit needs it, and how to remove it. Wrap each part as `<g class="el-part" data-id="slot" data-cat="category">`.
+- **Colour by function.** `CATEGORIES` gives each function a colour: power, conductor, control, resistance, output, measurement, storage, structure. Turning the mode on tints each part's outline and faces.
+- **Remove or swap.** `SLOTS` describes each slot, and `CATALOG` lists parts that fit it (batteries, resistors, pots, LED colours, meters, jumper wires, capacitors). A search box filters the catalog.
+- **Does it still work?** `verdict(parts, turn)` checks for an open loop, LED burnout (over 30 mA), resistor overheating (over 1/4 W), a pinned meter, and a battery too weak to light the LED. It explains each result in plain words. Add a rule there whenever a new failure becomes possible.
+- **Take apart.** `TAKE_APART` is the safe order (power first). The example lifts each part off the board in that order.
+
+When you add a part type, give it a `SLOTS` entry, catalog entries, and any new failure rules in `verdict`.
